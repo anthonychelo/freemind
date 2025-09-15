@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FREEMIND - Chat Multi-Appareils</title>
+    <!-- Firebase App (core Firebase SDK) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <!-- Firebase Firestore (base de données) -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-firestore.js"></script>
+    <style>
+        :root {
+            --primary-color: #6a11cb;
+            --secondary-color: #2575fc;
+            --dark-color: #1a1a2e;
+            --light-color: #f8f9fa;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: var(--light-color);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 3fr;
+            gap: 20px;
+            height: calc(100vh - 40px);
+        }
+        
+        header {
+            grid-column: 1 / -1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 20px;
+            background-color: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .logo {
+            font-size: 24px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+        
+        .logo i {
+            margin-right: 10px;
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .user-info span {
+            font-weight: 500;
+        }
+        
+        #user-pseudo-display {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 5px 10px;
+            border-radius: 15px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 1px solid white;
+            color: white;
+        }
+        
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        .sidebar {
+            background-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .online-users {
+            flex: 1;
+        }
+        
+        .user-list {
+            list-style: none;
+            margin-top: 10px;
+        }
+        
+        .user-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            background-color: rgba(255, 255, 255, 0.1);
+            transition: background-color 0.3s;
+        }
+        
+        .user-item:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            cursor: pointer;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 10px;
+            font-weight: bold;
+            font-size: 18px;
+        }
+        
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: var(--success-color);
+            margin-left: auto;
+        }
+        
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            background-color: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            overflow: hidden;
+        }
+        
+        .chat-header {
+            padding: 15px 20px;
+            background-color: rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+        }
+        
+        .chat-header .user-avatar {
+            margin-right: 15px;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .message {
+            max-width: 70%;
+            padding: 12px 15px;
+            border-radius: 18px;
+            position: relative;
+        }
+        
+        .message.received {
+            align-self: flex-start;
+            background-color: rgba(255, 255, 255, 0.2);
+            border-top-left-radius: 0;
+        }
+        
+        .message.sent {
+            align-self: flex-end;
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            border-top-right-radius: 0;
+        }
+        
+        .message-sender {
+            font-weight: bold;
+            margin-bottom: 5px;
+            font-size: 12px;
+        }
+        
+        .message-time {
+            font-size: 10px;
+            opacity: 0.7;
+            text-align: right;
+            margin-top: 5px;
+        }
+        
+        .chat-input {
+            display: flex;
+            padding: 15px;
+            background-color: rgba(0, 0, 0, 0.2);
+            gap: 10px;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 20px;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            outline: none;
+        }
+        
+        .chat-input input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .chat-input button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 20px;
+            background: linear-gradient(to right, var(--primary-color), var(--secondary-color));
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .chat-input button:hover {
+            transform: scale(1.05);
+        }
+        
+        .privacy-notice {
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            margin-top: 10px;
+            text-align: center;
+        }
+        
+        .credit {
+            text-align: center;
+            margin-top: 10px;
+            font-size: 12px;
+            opacity: 0.7;
+        }
+        
+        .login-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        
+        .login-form {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            padding: 30px;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+        
+        .login-form h2 {
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: none;
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            outline: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .form-group input::placeholder {
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+            }
+            
+            .sidebar {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Modal de connexion -->
+    <div class="login-modal" id="login-modal">
+        <div class="login-form">
+            <h2>Rejoindre FREEMIND</h2>
+            <div class="form-group">
+                <label for="user-pseudo">Choisissez un pseudo</label>
+                <input type="text" id="user-pseudo" placeholder="Votre pseudo" maxlength="20">
+            </div>
+            <button class="btn btn-primary" style="width: 100%;" id="join-btn">Rejoindre le chat</button>
+            <p class="credit" style="margin-top: 20px;">by the misunderstood (Anthony Chelo)</p>
+        </div>
+    </div>
+
+    <div class="container" id="app-container" style="display: none;">
+        <header>
+            <div class="logo">
+                <i>👤</i> FREEMIND
+            </div>
+            <div class="user-info">
+                <span>Connecté en tant que: <span id="user-pseudo-display">Invité</span></span>
+                <button class="btn btn-outline" id="logout-btn">Changer de pseudo</button>
+            </div>
+        </header>
+        
+        <aside class="sidebar">
+            <h2>Utilisateurs en ligne <span class="status-indicator"></span></h2>
+            <div class="online-users">
+                <ul class="user-list" id="user-list">
+                    <!-- Les utilisateurs seront ajoutés dynamiquement -->
+                </ul>
+            </div>
+            
+            <div class="privacy-notice">
+                <p>Votre vie privée est importante. Nous ne collectons ni ne stockons vos informations personnelles.</p>
+            </div>
+            <div class="credit">
+                <p>by the misunderstood (Anthony Chelo)</p>
+            </div>
+        </aside>
+        
+        <main class="chat-container">
+            <div class="chat-header">
+                <div class="user-avatar">G</div>
+                <div>
+                    <h3>Salon Général</h3>
+                    <p id="online-count">1 utilisateur en ligne</p>
+                </div>
+            </div>
+            
+            <div class="chat-messages" id="chat-messages">
+                <!-- Les messages seront ajoutés dynamiquement -->
+            </div>
+            
+            <div class="chat-input">
+                <input type="text" id="message-input" placeholder="Écrivez votre message ici...">
+                <button id="send-btn">Envoyer</button>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Configuration Firebase (à remplacer par votre configuration)
+        const firebaseConfig = {
+            apiKey: "AIzaSyCHlIEx4UeA5p5qJw25oxHYrQOq+yVk6X0",
+            authDomain: "freemind-chat-demo.firebaseapp.com",
+            projectId: "freemind-chat-demo",
+            storageBucket: "freemind-chat-demo.appspot.com",
+            messagingSenderId: "1234567890",
+            appId: "1:1234567890:web:abcdef123456"
+        };
+        
+        // Initialiser Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Références aux éléments du DOM
+            const loginModal = document.getElementById('login-modal');
+            const appContainer = document.getElementById('app-container');
+            const userPseudoInput = document.getElementById('user-pseudo');
+            const joinBtn = document.getElementById('join-btn');
+            const userPseudoDisplay = document.getElementById('user-pseudo-display');
+            const logoutBtn = document.getElementById('logout-btn');
+            const chatMessages = document.getElementById('chat-messages');
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-btn');
+            const userList = document.getElementById('user-list');
+            const onlineCount = document.getElementById('online-count');
+            
+            let currentUser = null;
+            let users = {};
+            
+            // Rejoindre le chat
+            joinBtn.addEventListener('click', function() {
+                const pseudo = userPseudoInput.value.trim();
+                if (pseudo) {
+                    currentUser = {
+                        id: generateUserId(),
+                        pseudo: pseudo,
+                        lastSeen: new Date()
+                    };
+                    
+                    // Sauvegarder l'utilisateur dans le stockage local
+                    localStorage.setItem('freemind_current_user', JSON.stringify(currentUser));
+                    
+                    // Mettre à jour l'interface
+                    userPseudoDisplay.textContent = currentUser.pseudo;
+                    
+                    // Cacher le modal et afficher l'application
+                    loginModal.style.display = 'none';
+                    appContainer.style.display = 'grid';
+                    
+                    // Initialiser le chat
+                    initChat();
+                }
+            });
+            
+            // Déconnexion
+            logoutBtn.addEventListener('click', function() {
+                localStorage.removeItem('freemind_current_user');
+                loginModal.style.display = 'flex';
+                appContainer.style.display = 'none';
+            });
+            
+            // Vérifier si un utilisateur est déjà connecté
+            const savedUser = localStorage.getItem('freemind_current_user');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                userPseudoDisplay.textContent = currentUser.pseudo;
+                loginModal.style.display = 'none';
+                appContainer.style.display = 'grid';
+                initChat();
+            }
+            
+            // Initialiser le chat
+            function initChat() {
+                // Enregistrer l'utilisateur comme étant en ligne
+                updateUserStatus();
+                
+                // Écouter les changements de statut des utilisateurs
+                db.collection("users").onSnapshot((snapshot) => {
+                    users = {};
+                    userList.innerHTML = '';
+                    let onlineUsers = 0;
+                    
+                    snapshot.forEach((doc) => {
+                        const user = doc.data();
+                        users[user.id] = user;
+                        
+                        // Vérifier si l'utilisateur est en ligne (vu il y a moins de 30 secondes)
+                        const lastSeen = new Date(user.lastSeen);
+                        const isOnline = (new Date() - lastSeen) < 30000;
+                        
+                        if (isOnline) onlineUsers++;
+                        
+                        // Ne pas s'afficher soi-même dans la liste
+                        if (user.id !== currentUser.id) {
+                            const userItem = document.createElement('li');
+                            userItem.classList.add('user-item');
+                            userItem.innerHTML = `
+                                <div class="user-avatar">${user.pseudo.charAt(0).toUpperCase()}</div>
+                                <span>${user.pseudo}</span>
+                                <span class="status-indicator" style="background-color: ${isOnline ? '#28a745' : '#dc3545'}"></span>
+                            `;
+                            userList.appendChild(userItem);
+                        }
+                    });
+                    
+                    // Mettre à jour le compteur d'utilisateurs en ligne
+                    onlineCount.textContent = `${onlineUsers + 1} utilisateurs en ligne`;
+                });
+                
+                // Écouter les nouveaux messages
+                db.collection("messages")
+                    .orderBy("timestamp", "asc")
+                    .onSnapshot((snapshot) => {
+                        snapshot.docChanges().forEach((change) => {
+                            if (change.type === "added") {
+                                const message = change.doc.data();
+                                addMessageToChat(message.sender, message.text, message.senderId === currentUser.id);
+                            }
+                        });
+                    });
+                
+                // Envoyer un message
+                sendButton.addEventListener('click', sendMessage);
+                messageInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') sendMessage();
+                });
+                
+                // Mettre à jour régulièrement le statut de l'utilisateur
+                setInterval(updateUserStatus, 10000);
+            }
+            
+            // Mettre à jour le statut de l'utilisateur
+            function updateUserStatus() {
+                if (currentUser) {
+                    currentUser.lastSeen = new Date();
+                    db.collection("users").doc(currentUser.id).set(currentUser);
+                }
+            }
+            
+            // Envoyer un message
+            function sendMessage() {
+                if (!currentUser || !messageInput.value.trim()) return;
+                
+                const message = {
+                    sender: currentUser.pseudo,
+                    senderId: currentUser.id,
+                    text: messageInput.value.trim(),
+                    timestamp: new Date()
+                };
+                
+                // Ajouter le message à Firestore
+                db.collection("messages").add(message)
+                    .catch((error) => {
+                        console.error("Erreur lors de l'envoi du message: ", error);
+                    });
+                
+                // Effacer le champ de saisie
+                messageInput.value = '';
+            }
+            
+            // Ajouter un message à l'interface
+            function addMessageToChat(sender, text, isSent = false) {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message');
+                messageDiv.classList.add(isSent ? 'sent' : 'received');
+                
+                messageDiv.innerHTML = `
+                    <div class="message-sender">${sender}</div>
+                    <div class="message-text">${text}</div>
+                    <div class="message-time">${new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                `;
+                
+                chatMessages.appendChild(messageDiv);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+            }
+            
+            // Générer un ID utilisateur unique
+            function generateUserId() {
+                return 'user_' + Math.random().toString(36).substr(2, 9);
+            }
+        });
+    </script>
+</body>
+</html>
